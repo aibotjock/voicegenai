@@ -141,12 +141,12 @@ def _re_url(m: re.Match) -> str:
     host, _, rest = url.partition("/")
     host = host.replace("_", " ").replace("-", " ")
     host = " dot ".join(h for h in host.split(".") if h)
-    out = [host] if host else []
+    parts: list[str] = [host] if host else []
     if rest:
-        parts = [p for p in rest.split("/") if p]
-        parts = [p.replace("_", " ").replace("-", " ") for p in parts]
-        out.append(" slash ".join(parts))
-    return " ".join(x for x in out if x)
+        path = [p for p in rest.split("/") if p]
+        path = [p.replace("_", " ").replace("-", " ") for p in path]
+        parts.append(" slash ".join(path))
+    return " slash ".join(x for x in parts if x)
 
 
 def _phone_spoken(digits: str) -> str:
@@ -174,12 +174,33 @@ def _money_spoken(value: str, cents: str | None, cur: str) -> str:
     return f"{spoken} {cur}s"
 
 
+def _decimal_amount_words(value: str) -> str:
+    v, frac = value.split(".")
+    return (f"{N.int_to_words(int(v))} point "
+            + " ".join(N._ONES[int(d)] for d in frac))
+
+
+def _re_currency_scale(m: re.Match) -> str:
+    # "$1.2 million" -> "one point two million dollars" (never a 'cents'
+    # reading when a scale word follows the amount)
+    cur_name = _CURRENCY_SYMBOL[m.group(1)]
+    value = m.group(2).replace(",", "")
+    scale = m.group(3).lower()
+    if "." in value:
+        amount = _decimal_amount_words(value)
+    else:
+        amount = N.int_to_words(int(value))
+    return f"{amount} {scale} {cur_name}s"
+
+
 def _re_currency_symbol(m: re.Match) -> str:
     cur_name = _CURRENCY_SYMBOL[m.group(1)]
     value = m.group(2).replace(",", "")
     if "." in value:
-        v, cents = value.split(".")
-        return _money_spoken(v, cents, cur_name)
+        v, frac = value.split(".")
+        if len(frac) == 2:  # exactly two decimals -> cents reading
+            return _money_spoken(v, frac, cur_name)
+        return f"{_decimal_amount_words(value)} {cur_name}s"
     return f"{N.int_to_words(int(value))} {cur_name}s"
 
 
@@ -435,7 +456,7 @@ _MD_TABLE_ROW = re.compile(r"^\s*\|(.+)\|\s*$", re.M)
 
 RULES: list[tuple[str, re.Pattern, object]] = [
     ("markdown-image-link", _MD_LINK, lambda m: m.group(1) or m.group(2) or ""),
-    ("markdown-heading", _MD_HEADING, _re_markdown),
+    ("markdown-heading", _MD_HEADING, lambda m: ""),
     ("markdown-bullet", _MD_BULLET, lambda m: ""),
     ("markdown-blockquote", _MD_BQ, lambda m: ""),
     ("markdown-hr", _MD_HR, lambda m: "\n\n"),
@@ -452,6 +473,7 @@ RULES: list[tuple[str, re.Pattern, object]] = [
     ("phone-intl", re.compile(r"\+\d[\d\s\-().]{6,17}\d"), _re_phone),
     ("phone-us", re.compile(r"(?<![\d.])(\(?\d{3}\)?)[\s.-](\d{3})[\s.-](\d{4})(?!\d)"),
      lambda m: _phone_spoken(re.sub(r"\D", "", m.group(0)))),
+    ("currency-symbol-scale", re.compile(r"([$€£¥₹])\s?(\d[\d,]*(?:\.\d+)?)\s+(million|billion|trillion)\b", re.I), _re_currency_scale),
     ("currency-symbol-code", re.compile(r"([$€£¥₹])\s?(\d[\d,]*(?:\.\d{1,2})?)\s+(USD|EUR|GBP|JPY|CNY|INR|AUD|CAD|CHF|SEK)\b", re.I), _re_currency_symbol_code),
     ("currency-symbol", re.compile(r"([$€£¥₹])\s?(\d[\d,]*(?:\.\d{1,2})?)(?!\s+(?:USD|EUR|GBP|JPY|CNY|INR|AUD|CAD|CHF|SEK)\b)"), _re_currency_symbol),
     ("currency-code", re.compile(r"\b(\d[\d,]*(?:\.\d+)?)\s?(USD|EUR|GBP|JPY|CNY|INR|AUD|CAD|CHF|SEK)\b", re.I), _re_currency_code),
@@ -478,7 +500,7 @@ RULES: list[tuple[str, re.Pattern, object]] = [
     ("year", re.compile(r"(?<![\d.])(19\d{2}|20\d{2})(?![\d-])"), _re_year),
     ("integer", re.compile(r"\b\d{1,3}(?:,\d{3})+\b|\b\d{4,}\b"), _re_int),
     ("plusminus", re.compile(r"(?<=\s)([+−])\s*(?=\d)"), _re_plusminus),
-    ("ampersand", re.compile(r"&"), lambda m: "and"),
+    ("ampersand", re.compile(r"&"), lambda m: " and "),
     ("at-symbol", re.compile(r"(?<![\w@])@(?![\w@])"), lambda m: "at"),
     ("roman-numeral", re.compile(r"\b([IVX]{2,4})\b"),
      lambda m: N.int_to_words(v) if (v := _roman_value(m.group(1))) is not None else m.group(0)),

@@ -10,7 +10,7 @@ import datetime as _dt
 import json
 from pathlib import Path
 
-from .config import SETTINGS
+from . import config
 
 
 def _now() -> str:
@@ -36,14 +36,14 @@ def append_event(
         "duration_s": round(duration_s, 2) if duration_s is not None else None,
         "detail": detail,
     }
-    path = SETTINGS.logs_dir / "audit.jsonl"
+    path = config.SETTINGS.logs_dir / "audit.jsonl"
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(event, sort_keys=True) + "\n")
     return event
 
 
 def read_events(limit: int = 200) -> list[dict]:
-    path = SETTINGS.logs_dir / "audit.jsonl"
+    path = config.SETTINGS.logs_dir / "audit.jsonl"
     if not path.exists():
         return []
     lines = path.read_text(encoding="utf-8").strip().splitlines()
@@ -59,7 +59,7 @@ def read_events(limit: int = 200) -> list[dict]:
 def diagnostics_bundle() -> str:
     """Logs + config, no audio, no voiceprints. Returns the JSON payload."""
     logs: dict[str, str] = {}
-    for p in sorted(SETTINGS.logs_dir.glob("*.jsonl")):
+    for p in sorted(config.SETTINGS.logs_dir.glob("*.jsonl")):
         text = p.read_text(encoding="utf-8")
         if len(text) > 200_000:
             text = text[-200_000:]
@@ -69,9 +69,9 @@ def diagnostics_bundle() -> str:
             "app": "Presence Studio",
             "generated_at": _now(),
             "config": {
-                "default_engine": SETTINGS.default_engine,
-                "default_design": SETTINGS.default_design,
-                "home": str(SETTINGS.home),
+                "default_engine": config.SETTINGS.default_engine,
+                "default_design": config.SETTINGS.default_design,
+                "home": str(config.SETTINGS.home),
             },
             "logs": logs,
             "note": "Diagnostics bundle: logs and config only. No audio, "

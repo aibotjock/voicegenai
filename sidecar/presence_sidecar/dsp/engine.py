@@ -94,7 +94,9 @@ def _write_float(path: str, y: np.ndarray, sr: int) -> None:
 
 
 def _parse_loudnorm_json(stderr: str) -> dict:
-    m = re.search(r"\{[^{}]*\"measured_I\"[^{}]*\}", stderr)
+    """Parse loudnorm pass-1 JSON (keys: input_i, input_tp, input_lra,
+    input_thresh, target_offset ...)."""
+    m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", stderr)
     if not m:
         raise DspError("loudnorm pass-1 produced no measurement JSON")
     return json.loads(m.group(0))

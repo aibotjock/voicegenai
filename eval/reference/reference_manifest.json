@@ -1,0 +1,50 @@
+{
+  "kind": "harness-reference-standin",
+  "source": "LibriSpeech test-clean (OpenSLR 12), CC BY 4.0",
+  "attribution": "Vassil Panayotov et al., LibriSpeech ASR corpus",
+  "speaker_id": "7127",
+  "utterances": [
+    "7127/75946/7127-75946-0000.flac",
+    "7127/75946/7127-75946-0001.flac",
+    "7127/75946/7127-75946-0002.flac",
+    "7127/75946/7127-75946-0003.flac",
+    "7127/75946/7127-75946-0004.flac",
+    "7127/75946/7127-75946-0005.flac",
+    "7127/75946/7127-75946-0006.flac",
+    "7127/75946/7127-75946-0007.flac",
+    "7127/75946/7127-75946-0008.flac",
+    "7127/75946/7127-75946-0009.flac",
+    "7127/75946/7127-75946-0010.flac",
+    "7127/75946/7127-75946-0011.flac",
+    "7127/75946/7127-75946-0012.flac",
+    "7127/75946/7127-75946-0013.flac",
+    "7127/75946/7127-75946-0014.flac"
+  ],
+  "utterance_durations_s": [
+    19.48,
+    2.17,
+    13.19,
+    4.81,
+    4.49,
+    2.67,
+    7.98,
+    4.75,
+    4.46,
+    4.72,
+    3.6,
+    3.17,
+    9.87,
+    8.58,
+    10.18
+  ],
+  "total_duration_s": 104.1,
+  "concat": {
+    "silence_gap_s": 0.4,
+    "normalize": "peak -6 dBFS",
+    "rate_hz": 48000
+  },
+  "transcript_file": "transcript.txt",
+  "reference_wav_sha256": "a1e1a0d3a1a2eaede62ce9fa53d9041c2777121d9af782c62d2e14706aa1018c",
+  "license": "CC BY 4.0",
+  "note": "CI/eval stand-in only; in production the reference is the user's own consented capture (never shipped as a voice)."
+}

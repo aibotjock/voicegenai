@@ -35,8 +35,9 @@ def _to_16k_mono(wav_path: str) -> tuple[np.ndarray, int]:
     if sr != 16000:
         import torchaudio
         t = torch_from_numpy(y)
-        y = torchaudio.functional.resample(t, sr, 16000).numpy()
-    return np.asarray(y, dtype=np.float32), 16000
+        y = torchaudio.functional.resample(t, sr, 16000).numpy().squeeze(0)
+    y = np.asarray(y, dtype=np.float32).squeeze()
+    return np.ascontiguousarray(y), 16000
 
 
 def torch_from_numpy(y: np.ndarray):
@@ -68,8 +69,13 @@ class SpeakerSimilarity:
         if self._enc is not None:
             return
         from resemblyzer import VoiceEncoder
-        import torch
-        self._device = "cuda" if torch.cuda.is_available() else "cpu"
+        import os
+        forced = os.environ.get("PRESENCE_DEVICE", "").strip().lower()
+        if forced in ("cpu", "cuda", "mps"):
+            self._device = forced
+        else:
+            import torch
+            self._device = "cuda" if torch.cuda.is_available() else "cpu"
         self._enc = VoiceEncoder(self._device)
 
     def embed(self, wav_path: str) -> Embedding:
@@ -78,8 +84,8 @@ class SpeakerSimilarity:
         y, sr = _to_16k_mono(wav_path)
         if y.size < 16000 * 0.5:
             raise ValueError("audio too short to embed (<0.5 s)")
-        t = torch_from_numpy(y)
-        vec = self._enc.embed_utterance(t, verify=False)
+        # resemblyzer expects a 1-D float32 numpy array at 16 kHz
+        vec = self._enc.embed_utterance(np.ascontiguousarray(y))
         with open(wav_path, "rb") as f:
             digest = hashlib.sha256(f.read()).hexdigest()
         return Embedding(vector=np.asarray(vec, dtype=np.float32),

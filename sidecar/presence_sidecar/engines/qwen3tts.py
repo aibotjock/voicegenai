@@ -1,17 +1,20 @@
-"""Qwen3-TTS adapter (12 Hz, 0.6B / 1.7B) — guarded.
+"""Qwen3-TTS adapter (12 Hz, 0.6B/1.7B Base) — verified API.
 
-Status (2026): Apache-2.0 repo; weight license must be verified in the
-registry manifest before enabling (bake-off gate). 3-second voice clone,
-natural-language voice design + instruction control (timbre/emotion/prosody),
-fine-tuning supported, 3-8 GB VRAM, streaming + non-streaming.
+Model card (Qwen/Qwen3-TTS-12Hz-1.7B-Base, Apache-2.0, 2026):
+    from qwen_tts import Qwen3TTSModel
+    model = Qwen3TTSModel.from_pretrained("Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+                                         device_map="cuda:0", dtype=torch.bfloat16)
+    wavs, sr = model.generate_voice_clone(text=..., language="English",
+                                         ref_audio=..., ref_text=...)
 
-Best fit for the P2 "Expression" panel (Layer B instruction control) and the
-P1 fine-tune adapter. The official `qwen-tts` package / HF transformers
-integration is imported lazily; without it the engine reports unavailable.
+Voice clone is the Base model; CustomVoice has fixed premium timbres with
+optional `instruct` (Layer B candidate), VoiceDesign does natural-language
+voice design. For CPU-only paths the 0.6B Base is the practical choice.
 """
 from __future__ import annotations
 
-from pathlib import Path
+import hashlib
+import os
 
 import numpy as np
 
@@ -20,8 +23,8 @@ from .base import (
     BaseEngine, EngineCapabilities, EngineNotAvailable, SynthRequest, SynthResult,
 )
 
-MODEL_ID = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
-MODEL_VERSION = "1.7B-12Hz"
+MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+MODEL_VERSION = "0.6B-12Hz"
 
 
 class Qwen3TTSEngine(BaseEngine):
@@ -29,19 +32,23 @@ class Qwen3TTSEngine(BaseEngine):
     model_id = MODEL_ID
     model_version = MODEL_VERSION
 
-    def __init__(self) -> None:
-        self._pipe = None
+    def __init__(self, model_id: str | None = None) -> None:
+        self._model = None
         self._loaded = False
         self._device = "cpu"
+        if model_id:
+            self.model_id = model_id
+            self.model_version = model_id.split("/")[-1].replace(
+                "Qwen3-TTS-", "")
 
     def capabilities(self) -> EngineCapabilities:
         return EngineCapabilities(
             supports_reference=True,
             supports_phoneme_inpainting=False,
             supports_seed=True,
-            instruction_control=True,   # natural-language voice design
+            instruction_control=True,   # Layer B: `instruct` param (P2)
             streaming=True,
-            languages=("en", "zh"),
+            languages=("en", "zh", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"),
             output_rate=24000,
         )
 
@@ -49,26 +56,27 @@ class Qwen3TTSEngine(BaseEngine):
         if self._loaded:
             return
         try:
-            from qwen_tts import Qwen3TTSForConditionalGeneration  # type: ignore
-        except ImportError:
-            try:
-                from transformers import Qwen3TTSForConditionalGeneration  # type: ignore
-            except ImportError as e:
-                raise EngineNotAvailable(
-                    "Qwen3-TTS is not installed. pip install -U qwen-tts "
-                    "(or a transformers build with the Qwen3-TTS architecture); "
-                    "verify the weight license before use."
-                ) from e
+            from qwen_tts import Qwen3TTSModel  # type: ignore
+        except ImportError as e:
+            raise EngineNotAvailable(
+                "qwen-tts is not installed. pip install -U qwen-tts "
+                "(official Qwen3-TTS package; weights Apache-2.0 — re-verify "
+                "on bump)."
+            ) from e
+        import torch
         self._device = self._pick_device()
-        model_dir = SETTINGS.models_dir / "qwen3-tts" / MODEL_VERSION
-        if not model_dir.exists():
-            from huggingface_hub import snapshot_download
-            model_dir.mkdir(parents=True, exist_ok=True)
-            snapshot_download(MODEL_ID, local_dir=str(model_dir))
-        self._pipe = Qwen3TTSForConditionalGeneration.from_pretrained(
-            str(model_dir), torch_dtype="auto"
-        ).to(self._device)
-        self._pipe.eval()
+        dtype = torch.bfloat16 if self._device == "cuda" else torch.float32
+        kwargs = {}
+        if os.environ.get("QWEN_TTS_FLASH_ATTN") == "1":
+            kwargs["attn_implementation"] = "flash_attention_2"
+        local = str(SETTINGS.models_dir / "qwen3-tts" / self.model_id.split("/")[-1])
+        if os.path.isdir(local) and os.listdir(local):
+            src = local
+        else:
+            src = self.model_id
+        self._model = Qwen3TTSModel.from_pretrained(
+            src, device_map=self._device, dtype=dtype, **kwargs
+        )
         self._loaded = True
 
     def synthesize(self, req: SynthRequest) -> SynthResult:
@@ -79,31 +87,30 @@ class Qwen3TTSEngine(BaseEngine):
         import torch
         if req.seed is not None:
             torch.manual_seed(req.seed)
-        # Voice-design / instruction string (Layer B): visible in UI,
-        # recorded in provenance. Off by default (None).
+        warnings: list[str] = []
         kwargs: dict = {}
         if req.instruct:
+            # Layer B instruction string: visible in UI, recorded in provenance
             kwargs["instruct"] = req.instruct
         with torch.inference_mode():
-            out = self._pipe.generate(
-                audio_prompt=req.reference.wav_path,
+            wavs, sr = self._model.generate_voice_clone(
                 text=req.text,
+                language="English",
+                ref_audio=req.reference.wav_path,
+                ref_text=req.reference.transcript or " ",
                 **kwargs,
             )
-        wav = out.wav.cpu().numpy().squeeze().astype(np.float3) if hasattr(out, "wav") else None
-        if wav is None:
-            raise EngineNotAvailable("Qwen3-TTS returned an unexpected output")
-        import hashlib
-        out_path = SETTINGS.audio_dir / "gen" / (
+        wav = np.asarray(wavs[0], dtype=np.float32)
+        out = SETTINGS.audio_dir / "gen" / (
             f"qw3-{hashlib.sha256(req.text.encode()).hexdigest()[:12]}.wav"
         )
-        self._write_wav(str(out_path), wav, 24000)
+        self._write_wav(str(out), wav, int(sr))
         return SynthResult(
-            wav_path=str(out_path),
+            wav_path=str(out),
             engine_id=self.id,
-            engine_version=f"qwen3-tts-{MODEL_VERSION}",
+            engine_version=f"qwen-tts {self.model_version}",
             model_id=self.model_id,
             model_version=self.model_version,
             seed_used=req.seed,
-            warnings=[],
+            warnings=warnings,
         )

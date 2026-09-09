@@ -106,14 +106,16 @@ def segment_script(
     the mapping is visible in the UI per the spec).
     """
     segments: list[Segment] = []
+    seen_paras: set[int] = set()
     for sentence, para_idx in split_sentences(text):
-        first = True
+        # a paragraph start = the FIRST sentence of a paragraph
+        first = para_idx not in seen_paras
+        seen_paras.add(para_idx)
         for piece in _split_long(sentence):
             segments.append(Segment(
                 index=len(segments), text=piece, paragraph=para_idx,
                 is_paragraph_start=first,
             ))
-            first = False
     if phrases:
         for ph in phrases:
             key = ph.text[:20]

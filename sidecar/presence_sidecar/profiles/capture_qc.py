@@ -46,11 +46,16 @@ def qc(wav_path: str) -> QcResult:
         y = y.mean(axis=1)
     duration = len(y) / sr
     env = _energy_envelope(y, sr)
-    floor = float(np.percentile(env, 10)) if env.size else 0.0
-    peak = float(np.percentile(env, 95)) if env.size else 0.0
-    snr = 20 * np.log10((peak + 1e-9) / (floor + 1e-9))
+    floor = float(np.percentile(env, 5)) if env.size else 0.0
+    loud = float(np.percentile(env, 95)) if env.size else 0.0
+    snr = 20 * np.log10((loud + 1e-9) / (floor + 1e-9))
     clipping = int(np.sum(np.abs(y) >= 0.995))
-    silence_ratio = float(np.mean(env < max(floor * 2, 1e-4))) if env.size else 1.0
+    # silence = frames far below the LOUD level (comparing against the quiet
+    # frames makes any continuous signal look 'silent')
+    if env.size and loud > 1e-4:
+        silence_ratio = float(np.mean(env < max(0.08 * loud, 1e-4)))
+    else:
+        silence_ratio = 1.0
 
     # multi-speaker heuristic: large sustained pitch-energy changes.
     # Advisory only — the hard gate is the speaker-verification step.
@@ -84,7 +89,12 @@ def qc(wav_path: str) -> QcResult:
             f"Recording is longer than {MAX_DURATION_S / 60:.0f} minutes; we use the "
             "best 10 minutes."
         )
-    if snr < 12:
+    if loud < 10 ** (-45 / 20):
+        issues.append(
+            "This recording is essentially silence. Check that your "
+            "microphone is connected and selected."
+        )
+    elif snr < 12:
         issues.append(
             "There's a lot of background noise. A quieter room or a closer "
             "microphone will give a much better clone."
@@ -119,7 +129,7 @@ def to_dict(r: QcResult) -> dict:
         "clipping_events": r.clipping_events,
         "max_abs": round(r.max_abs, 4),
         "silence_ratio": round(r.silence_ratio, 3),
-        "multi_speaker_suspect": r.multi_speaker_suspect,
-        "ok": r.ok,
+        "multi_speaker_suspect": bool(r.multi_speaker_suspect),
+        "ok": bool(r.ok),   # never leak numpy.bool_ into JSON responses
         "issues": r.issues,
     }

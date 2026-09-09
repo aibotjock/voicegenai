@@ -17,7 +17,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..config import SETTINGS
+from .. import config
 from .consent import consent_record, consent_sha
 from .keystore import new_fernet
 
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   verify_status TEXT NOT NULL DEFAULT 'pending',
   capture_kind TEXT NOT NULL DEFAULT 'unknown'
 );
-CREATE TABLE IF NOT EXISTS references (
+CREATE TABLE IF NOT EXISTS voice_references (
   id TEXT PRIMARY KEY,
   profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   kind TEXT NOT NULL,
@@ -103,12 +103,14 @@ def _uuid() -> str:
 
 class ProfileStore:
     def __init__(self, home: Path | None = None) -> None:
-        self.home = Path(home) if home else SETTINGS.home
+        self.home = Path(home) if home else config.SETTINGS.home
         self.db_path = self.home / "profiles.db"
         self.audio_root = self.home / "audio" / "profiles"
         self.audio_root.mkdir(parents=True, exist_ok=True)
         self._fernet = new_fernet()
-        self.db = sqlite3.connect(str(self.db_path))
+        # generation jobs run in a worker thread; our usage is serialized
+        # (single job at a time per store), so cross-thread access is safe.
+        self.db = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys = ON")
         self.db.executescript(SCHEMA)
@@ -165,7 +167,7 @@ class ProfileStore:
         rid = _uuid()
         key = self.store_encrypted(pid, "ref", data)
         self.db.execute(
-            "INSERT INTO references (id, profile_id, kind, file_key, transcript,"
+            "INSERT INTO voice_references (id, profile_id, kind, file_key, transcript,"
             " duration_s, snr_db, selected, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
             (rid, pid, kind, key, transcript, duration_s, snr_db,
              1 if selected else 0, _now()),
@@ -185,7 +187,7 @@ class ProfileStore:
 
     def get_reference(self, pid: str, selected: bool = True) -> dict | None:
         row = self.db.execute(
-            "SELECT * FROM references WHERE profile_id=? AND selected=? "
+            "SELECT * FROM voice_references WHERE profile_id=? AND selected=? "
             "ORDER BY created_at DESC LIMIT 1", (pid, 1 if selected else 0),
         ).fetchone()
         return dict(row) if row else None
@@ -227,7 +229,7 @@ class ProfileStore:
                     deleted.append(f"file:{f.name}")
             prof_dir.rmdir()
         # cached generations tagged to this profile
-        gen_dir = SETTINGS.audio_dir / "gen"
+        gen_dir = config.SETTINGS.audio_dir / "gen"
         if gen_dir.exists():
             for f in sorted(gen_dir.glob(f"{pid}-*")):
                 f.unlink()

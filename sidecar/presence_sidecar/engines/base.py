@@ -102,6 +102,13 @@ class BaseEngine(abc.ABC):
 
     @staticmethod
     def _pick_device() -> str:
+        """GPU auto-detection with an override: PRESENCE_DEVICE=cpu forces
+        the CPU-only path (spec §5 — must remain functional; the UI states
+        expected generation time before the user commits)."""
+        import os
+        forced = os.environ.get("PRESENCE_DEVICE", "").strip().lower()
+        if forced in ("cpu", "cuda", "mps"):
+            return forced
         import torch
         if torch.cuda.is_available():
             return "cuda"

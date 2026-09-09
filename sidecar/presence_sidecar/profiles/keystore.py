@@ -8,11 +8,10 @@ clear warning — never silent.
 """
 from __future__ import annotations
 
-import base64
 import os
 import warnings
 
-from ..config import SETTINGS
+from .. import config
 
 SERVICE = "presence-studio"
 ENTRY = "master-key"
@@ -28,9 +27,11 @@ def _gen_key() -> bytes:
 
 
 def load_or_create_file_key() -> tuple[bytes, str]:
-    key_path = SETTINGS.keys_dir / "master.key"
+    """File-backed key (dev/CI fallback). The stored form is exactly the
+    Fernet key format: 32 url-safe base64-encoded bytes — never decoded."""
+    key_path = config.SETTINGS.keys_dir / "master.key"
     if key_path.exists():
-        key = base64.urlsafe_b64decode(key_path.read_bytes().strip())
+        key = key_path.read_bytes().strip()
     else:
         key = _gen_key()
         key_path.write_bytes(key)
@@ -40,13 +41,27 @@ def load_or_create_file_key() -> tuple[bytes, str]:
 
 def get_master_key() -> tuple[bytes, str]:
     """Return (key, source). Prefers the OS keychain."""
+    def _valid_fernet_key(k: bytes) -> bool:
+        try:
+            from cryptography.fernet import Fernet
+            Fernet(k)
+            return True
+        except Exception:
+            return False
+
     try:
         import keyring
         key = keyring.get_password(SERVICE, ENTRY)
+        if key and _valid_fernet_key(key.encode()):
+            return key.encode(), "keychain"   # stored in Fernet base64 form
         if key:
-            return base64.urlsafe_b64decode(key.encode()), "keychain"
+            # corrupted entry: drop it; never silently use a bad key
+            try:
+                keyring.delete_password(SERVICE, ENTRY)
+            except Exception:
+                pass
         new_key = _gen_key()
-        keyring.set_password(SERVICE, ENTRY, base64.urlsafe_b64encode(new_key).decode())
+        keyring.set_password(SERVICE, ENTRY, new_key.decode())
         return new_key, "keychain"
     except Exception as e:  # no keychain backend in this environment
         key, path = load_or_create_file_key()

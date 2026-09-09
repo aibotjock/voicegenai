@@ -60,7 +60,7 @@ class Design:
             raise ValueError("comp_ratio must be 0 (off) or 2.0..4.0")
         if not (0 <= self.pause_shaping_ms <= 400):
             raise ValueError("pause_shaping_ms must be 0..400")
-        if not (50 <= self.pad_ms <= 1000):
+        if not (self.pad_ms == 0 or 50 <= self.pad_ms <= 1000):
             raise ValueError("pad_ms must be 50..1000 (0 allowed for raw)")
 
     def params_hash(self) -> str:

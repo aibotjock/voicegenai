@@ -21,9 +21,14 @@ class Utmos:
         if self._model is not None:
             return
         from utmos_pytorch import UTMOSScoreTorch
-        import torch
+        import os
+        forced = os.environ.get("PRESENCE_DEVICE", "").strip().lower()
         if self.device is None:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            if forced in ("cpu", "cuda", "mps"):
+                self.device = forced
+            else:
+                import torch
+                self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._model = UTMOSScoreTorch(device=self.device)
 
     def score(self, wav_path: str) -> float:

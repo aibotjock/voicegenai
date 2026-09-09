@@ -1,8 +1,10 @@
 """Loudness measurement and independent verification (pyloudnorm).
 
 Two-pass loudnorm (FFmpeg) does the work; pyloudnorm verifies the result
-independently after the fact (integrated LUFS, true peak, LRA). The report
-is written into the UI, the sidecar text file, and the file metadata.
+independently after the fact (integrated LUFS, loudness range). True peak is
+measured per ITU-R BS.1770-4 (4x oversampled peak — pyloudnorm 0.2 has no
+true_peak method, so we implement it). The report goes to the UI, the
+sidecar text file, and the file metadata.
 """
 from __future__ import annotations
 
@@ -31,6 +33,20 @@ class LoudnessReport:
         return asdict(self)
 
 
+def true_peak_db(y: np.ndarray, sr: int) -> float:
+    """ITU-R BS.1770-4 style true peak: 4x oversampled maximum |sample|."""
+    if y.ndim > 1:
+        y = y.mean(axis=1)
+    if y.size == 0:
+        return -70.0
+    from scipy.signal import resample_poly
+    y4 = resample_poly(np.asarray(y, dtype=np.float64), 4, 1)
+    peak = float(np.max(np.abs(y4)))
+    if peak <= 0:
+        return -70.0
+    return 20.0 * np.log10(peak)
+
+
 def measure(path: str) -> dict:
     if pyln is None:
         raise RuntimeError("pyloudnorm is not installed")
@@ -38,12 +54,21 @@ def measure(path: str) -> dict:
     if y.ndim > 1:
         y = y.mean(axis=1)
     meter = pyln.Meter(sr)
-    integrated = meter.integrated_loudness(y)
-    true_peak = meter.true_peak(y)
-    lra = meter.loudness_range(y)
+    # pyloudnorm's block/LRA requirements are stricter than a single block
+    # (LRA needs a longer window); for short clips these metrics are
+    # undefined — report conservative values instead of failing.
+    try:
+        integrated = meter.integrated_loudness(y)
+    except ValueError:
+        integrated = -70.0
+    try:
+        lra = meter.loudness_range(y)
+    except ValueError:
+        lra = 0.0
+    tp = true_peak_db(y, sr)
     return {
         "integrated_lufs": float(integrated) if np.isfinite(integrated) else -70.0,
-        "true_peak_db": float(true_peak) if np.isfinite(true_peak) else -70.0,
+        "true_peak_db": float(tp) if np.isfinite(tp) else -70.0,
         "lra_lu": float(lra) if np.isfinite(lra) else 0.0,
         "sr": int(sr),
         "samples": int(y.size),
