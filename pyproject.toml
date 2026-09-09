@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "presence-sidecar"
+version = "0.1.0"
+description = "Presence Studio sidecar: local voice cloning + voice design (TTS, DSP, self-checks, export)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "Presence Studio" }]
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "pydantic>=2.6",
+  "soundfile>=0.12",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "pyloudnorm>=0.1.1",
+  "cryptography>=42",
+  "keyring>=24",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+ml = [
+  "torch>=2.3",
+  "faster-whisper>=1.0",
+  "utmos>=1.3",
+  "resemblyzer>=0.0.4",
+]
+dev = [
+  "pytest>=8",
+  "pytest-timeout>=2",
+]
+
+[project.scripts]
+presence = "presence_sidecar.cli:main"
+presence-sidecar = "presence_sidecar.__main__:run"
+presence-harness = "presence_sidecar.harness:main"
+
+[tool.setuptools.packages.find]
+where = ["sidecar"]
+include = ["presence_sidecar*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 600
+addopts = "-q"
