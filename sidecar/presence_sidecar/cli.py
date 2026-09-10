@@ -72,7 +72,7 @@ def _cmd_generate(args) -> int:
     if args.reference:
         reference = EngineRef(wav_path=args.reference, transcript=args.transcript or "")
     elif engine.capabilities().supports_reference:
-        print(f"error: engine {engine.id} requires --reference (a verified "
+        print(f"error: engine {engine.id} requires --reference (a clean "
               "capture of your own voice)", file=sys.stderr)
         return 2
 
@@ -160,7 +160,7 @@ def main() -> int:
     g.add_argument("--engine", default=SETTINGS.default_engine)
     g.add_argument("--design", default=SETTINGS.default_design)
     g.add_argument("--lufs", type=float, default=None, help="override target (e.g. -23)")
-    g.add_argument("--reference", help="path to your verified reference wav")
+    g.add_argument("--reference", help="path to your own-voice reference wav")
     g.add_argument("--transcript", default="", help="reference transcript")
     g.add_argument("--seed", type=int, default=1234)
     g.add_argument("--out", default="presence-export")

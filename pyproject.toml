@@ -12,6 +12,8 @@ license = { text = "Proprietary" }
 authors = [{ name = "Presence Studio" }]
 dependencies = [
   "fastapi>=0.110",
+  "python-multipart>=0.0.9",
+  "mutagen>=1.46",
   "uvicorn[standard]>=0.29",
   "pydantic>=2.6",
   "soundfile>=0.12",

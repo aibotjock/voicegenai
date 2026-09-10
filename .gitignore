@@ -26,3 +26,9 @@ presence-data/
 .DS_Store
 .idea/
 .vscode/
+
+# UI / desktop
+ui/node_modules/
+ui/dist/
+ui/src-tauri/target/
+ui/src-tauri/gen/

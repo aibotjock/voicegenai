@@ -1,13 +1,13 @@
 """Speaker identity: SECS (speaker embedding cosine similarity).
 
-Self-hosted verification model. MVP uses resemblyzer's VoiceEncoder
-(d-vector, MIT); the production path targets ECAPA-TDNN / 3D-Speaker class
-encoders (see docs/engine-selection.md). The metric is the same contract:
+Self-hosted similarity model used by the quality harness to check that
+generated audio stays recognizably the profile's voice. MVP uses
+resemblyzer's VoiceEncoder (d-vector, MIT); the production path targets
+ECAPA-TDNN / 3D-Speaker class encoders. The metric is the same contract:
 cosine similarity of embeddings against the profile reference.
 
-Gates: SECS >= 0.80 on raw output, >= 0.75 at the most extreme shipped
-preset (Boardroom). Verification gate at capture: below threshold ->
-profile locked, 3 retries, then re-capture.
+Quality gates: SECS >= 0.80 on raw output, >= 0.75 at the most extreme
+shipped preset (Boardroom).
 
 Voiceprints are biometric data: keychain-held, never logged, never in
 diagnostics exports.
@@ -24,8 +24,6 @@ from ..config import SETTINGS
 
 SECS_GENERATION_MIN = 0.80
 SECS_PRESET_MIN = 0.75
-SECS_VERIFY_MIN = 0.72
-MAX_VERIFY_ATTEMPTS = 3
 
 
 def _to_16k_mono(wav_path: str) -> tuple[np.ndarray, int]:
@@ -106,7 +104,6 @@ class SpeakerSimilarity:
         threshold = {
             "generation": SECS_GENERATION_MIN,
             "preset": SECS_PRESET_MIN,
-            "verify": SECS_VERIFY_MIN,
         }.get(kind)
         if threshold is None:
             raise ValueError(f"unknown gate kind {kind!r}")

@@ -3,7 +3,7 @@
 - `eval_script_50.json` — the fixed 50-sentence evaluation script (committed,
   hashed; regenerated inputs are forbidden — a change re-runs the gates).
 - `reference/` — the 100–120 s reference capture used by the harness and the
-  bake-off. In production this is the user's own verified capture.
+  bake-off. In production this is the user's own consent-gated capture.
 
 ## Reference stand-in (CI/eval)
 

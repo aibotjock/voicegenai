@@ -127,10 +127,6 @@ class GenerationJob:
         ref_meta = self.store.get_reference(p["profile_id"])
         if ref_meta is None:
             raise RuntimeError("profile has no reference capture")
-        if prof.get("verify_status") != "verified":
-            raise RuntimeError(
-                "profile is not verified — run the speaker-verification gate"
-            )
 
         # decrypt reference to a working file for the engine
         ref_path = Path(SETTINGS.audio_dir) / f"jobref-{self.id}.wav"

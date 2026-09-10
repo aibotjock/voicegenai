@@ -25,7 +25,7 @@ class EngineCapabilities:
 
 @dataclass
 class EngineRef:
-    """Speaker reference: a verified window of the user's own voice."""
+    """Speaker reference: a window of the user's own voice."""
     wav_path: str
     transcript: str = ""
 

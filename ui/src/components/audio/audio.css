@@ -1,0 +1,151 @@
+/* Audio components: recorder, player, waveform. */
+
+/* ---- recorder ---- */
+.recorder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  background: var(--surface);
+}
+.recorder-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.recorder-device {
+  max-width: 260px;
+}
+.recorder-device-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+.recorder-timer {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+.level-meter {
+  display: flex;
+  gap: 4px;
+  height: 24px;
+  align-items: flex-end;
+}
+.level-bar {
+  flex: 1;
+  height: 30%;
+  border-radius: 3px;
+  background: var(--border);
+  transition: height 80ms linear, background 80ms linear;
+}
+.level-bar.level-on {
+  height: 100%;
+  background: var(--accent);
+}
+.level-bar.level-hot {
+  height: 100%;
+  background: var(--danger);
+}
+.recorder-hint {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+.recorder-error {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+.recorder-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* ---- player ---- */
+.player {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  background: var(--surface);
+}
+.player-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.player-play {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease);
+}
+.player-play:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.player-play:disabled {
+  opacity: 0.5;
+}
+.player-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+.player-track {
+  flex: 1;
+  min-width: 0;
+}
+.player-side {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+.player-speed {
+  width: 74px;
+}
+.player-volume {
+  width: 88px;
+}
+.waveform {
+  width: 100%;
+  height: 56px;
+  display: block;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.waveform-placeholder {
+  width: 100%;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: var(--text-sm);
+}
+.player-title {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

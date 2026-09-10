@@ -1,0 +1,36 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "VoiceGenAI default window capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [{ "url": "http://127.0.0.1:*" }, { "url": "http://127.0.0.1:*/*" }]
+    },
+    "fs:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        { "path": "$HOME/.local/data/presence-studio" },
+        { "path": "$HOME/.local/data/presence-studio/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        { "path": "$HOME/.local/data/presence-studio" },
+        { "path": "$HOME/.local/data/presence-studio/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        { "path": "$HOME/.local/data/presence-studio" },
+        { "path": "$HOME/.local/data/presence-studio/**" }
+      ]
+    }
+  ]
+}

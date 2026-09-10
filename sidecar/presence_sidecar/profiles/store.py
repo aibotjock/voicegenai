@@ -1,7 +1,7 @@
 """Profile store: SQLite metadata + encrypted file store.
 
-- SQLite: profiles, references (metadata), embeddings (metadata), designs,
-  scripts, jobs, exports.
+- SQLite: profiles, references (metadata), embeddings (metadata),
+  adapters (metadata), designs, scripts, jobs, exports.
 - Encrypted file store: reference audio, voiceprints (embeddings), and
   generated audio are Fernet-encrypted (AEAD) with the keychain-held key.
   File names are content hashes; plaintext never persists.
@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TEXT NOT NULL,
   consent TEXT NOT NULL,
   consent_sha TEXT NOT NULL,
-  verify_status TEXT NOT NULL DEFAULT 'pending',
   capture_kind TEXT NOT NULL DEFAULT 'unknown'
 );
 CREATE TABLE IF NOT EXISTS voice_references (

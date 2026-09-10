@@ -11,7 +11,6 @@ Routes (v1):
   POST /api/v1/profiles             create profile (multipart: capture audio)
   GET  /api/v1/profiles             list profiles (no voiceprint material)
   DELETE /api/v1/profiles/{id}      "Delete my voice" (verified wipe)
-  POST /api/v1/profiles/{id}/verify   speaker-verification gate (upload)
   POST /api/v1/generate             start a generation job
   GET  /api/v1/jobs/{id}           job state (segments, WER flags)
   GET  /api/v1/jobs/{id}/events    SSE stream of job progress
@@ -24,11 +23,8 @@ engine option (P1) does not exist in this build by design.
 """
 from __future__ import annotations
 
-import asyncio
 import datetime as _dt
-import json
 import secrets
-import threading
 import uuid
 from pathlib import Path
 
@@ -162,8 +158,7 @@ def create_app(token: str | None = None) -> FastAPI:
     def list_profiles() -> list[dict]:
         return [
             {"id": p["id"], "name": p["name"], "status": p["status"],
-             "created_at": p["created_at"], "capture_kind": p["capture_kind"],
-             "verify_status": p["verify_status"]}
+             "created_at": p["created_at"], "capture_kind": p["capture_kind"]}
             for p in store().list_profiles()
         ]
 
@@ -176,52 +171,6 @@ def create_app(token: str | None = None) -> FastAPI:
         if not res["ok"]:
             raise HTTPException(400, "delete failed — residual files remain")
         return {"ok": True, "deleted": len(res["deleted"]), "residual": 0}
-
-    @app.post("/api/v1/profiles/{pid}/verify",
-              dependencies=[Depends(require_token)])
-    async def verify_profile(pid: str, utterance: UploadFile = File(...)) -> dict:
-        """Speaker-verification gate: fresh utterance vs the voiceprint."""
-        from .identity.secs import SpeakerSimilarity, SECS_VERIFY_MIN, MAX_VERIFY_ATTEMPTS
-        prof = store().get_profile(pid)
-        if prof is None:
-            raise HTTPException(404, "profile not found")
-        ref = store().get_reference(pid)
-        if ref is None:
-            raise HTTPException(409, "profile has no reference capture")
-        tmp = Path(SETTINGS.audio_dir) / f"verify-{uuid.uuid4().hex}.wav"
-        tmp.write_bytes(await utterance.read())
-        try:
-            ss = SpeakerSimilarity()
-            ref_tmp = Path(SETTINGS.audio_dir) / f"ref-{uuid.uuid4().hex}.wav"
-            ref_tmp.write_bytes(store().load_encrypted(ref["file_key"]))
-            try:
-                emb_ref = ss.embed(str(ref_tmp))
-            finally:
-                ref_tmp.unlink(missing_ok=True)
-            emb_live = ss.embed(str(tmp))
-        except Exception as e:
-            raise HTTPException(422, f"could not verify: {e}")
-        finally:
-            tmp.unlink(missing_ok=True)
-        secs = ss.cosine(emb_ref.vector, emb_live.vector)
-        attempts = int(prof.get("verify_attempts") or 0) + 1
-        ok = secs >= SECS_VERIFY_MIN
-        if ok:
-            store().db.execute(
-                "UPDATE profiles SET verify_status='verified', "
-                "verify_attempts=? WHERE id=?", (attempts, pid))
-        elif attempts >= MAX_VERIFY_ATTEMPTS:
-            store().db.execute(
-                "UPDATE profiles SET verify_status='locked', "
-                "verify_attempts=? WHERE id=?", (attempts, pid))
-        else:
-            store().db.execute(
-                "UPDATE profiles SET verify_status='retry', "
-                "verify_attempts=? WHERE id=?", (attempts, pid))
-        store().db.commit()
-        audit.append_event("verify", profile_id=pid, detail=f"secs={secs:.3f}")
-        return {"ok": ok, "secs": round(secs, 4), "attempts": attempts,
-                "status": store().get_profile(pid)["verify_status"]}
 
     # -- generation jobs ---------------------------------------------------
 

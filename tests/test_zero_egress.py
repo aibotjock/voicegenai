@@ -70,9 +70,6 @@ def test_local_flow_makes_zero_network_calls(blocked_sockets, tmp_path, home):
     ref_bytes = p.read_bytes()
     store.add_reference(pid, "capture", ref_bytes, transcript="hi",
                         duration_s=2.0, snr_db=30.0)
-    store.db.execute("UPDATE profiles SET verify_status='verified' WHERE id=?",
-                     (pid,))
-    store.db.commit()
 
     # generation job on the offline-stub engine (no weights, no network)
     job = GenerationJob({

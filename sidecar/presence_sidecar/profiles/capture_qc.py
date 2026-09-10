@@ -58,7 +58,7 @@ def qc(wav_path: str) -> QcResult:
         silence_ratio = 1.0
 
     # multi-speaker heuristic: large sustained pitch-energy changes.
-    # Advisory only — the hard gate is the speaker-verification step.
+    # Advisory only.
     suspect = False
     if env.size > 20:
         med = float(np.median(env))

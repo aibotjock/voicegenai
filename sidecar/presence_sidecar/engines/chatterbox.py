@@ -93,7 +93,7 @@ class ChatterboxEngine(BaseEngine):
             self.load()
         if req.reference is None:
             raise EngineNotAvailable(
-                "Chatterbox requires a verified speaker reference"
+                "Chatterbox requires a speaker reference"
             )
         if req.instruct:
             # no instruction control on this engine; visible to the user

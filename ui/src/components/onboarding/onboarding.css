@@ -1,0 +1,86 @@
+/* Onboarding + full-page states (connect / offline). */
+
+.onboarding {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8) var(--sp-4);
+}
+.onboarding-card {
+  width: min(640px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+.onboarding-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.onboarding-mark-success {
+  background: var(--success);
+}
+.onboarding-title {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.onboarding-body {
+  color: var(--text-2);
+  font-size: var(--text-lg);
+  line-height: var(--leading-reading);
+  max-width: 520px;
+}
+.onboarding-note {
+  color: var(--text-3);
+  font-size: var(--text-sm);
+}
+
+.fullpage-state {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  padding: var(--sp-8);
+  text-align: center;
+}
+.fullpage-state h1 {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+.fullpage-state p {
+  color: var(--text-2);
+  max-width: 480px;
+}
+.connect-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: min(420px, 100%);
+  text-align: left;
+}
+.connect-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+  text-align: left;
+  word-break: break-all;
+  color: var(--text-2);
+}

@@ -113,24 +113,17 @@ def test_profile_lifecycle_and_delete(client, tmp_path):
                    client.get("/api/v1/profiles", headers=_auth(client)).json())
 
 
-def _make_verified_profile(client, tmp_path):
+def _make_profile(client, tmp_path):
     data = _wav_bytes(tmp_path)
     r = client.post("/api/v1/profiles", headers=_auth(client),
                     data={"name": "Me"},
                     files={"capture": ("c.wav", data, "audio/wav")})
-    pid = r.json()["profile_id"]
-    # verification is normally a live-utterance gate; tests mark it directly
-    from presence_sidecar.profiles.store import ProfileStore
-    store = ProfileStore()
-    store.db.execute("UPDATE profiles SET verify_status='verified' WHERE id=?",
-                     (pid,))
-    store.db.commit()
-    return pid
+    return r.json()["profile_id"]
 
 
 def test_generate_job_flow_with_stub_engine(client, tmp_path, home, monkeypatch):
     monkeypatch.setattr(SETTINGS, "default_engine", "offline-stub")
-    pid = _make_verified_profile(client, tmp_path)
+    pid = _make_profile(client, tmp_path)
     r = client.post("/api/v1/generate", headers=_auth(client), json={
         "script": "First sentence here. Second sentence follows!\n\n"
                   "A third sentence in paragraph two.",
@@ -163,7 +156,9 @@ def test_generate_job_flow_with_stub_engine(client, tmp_path, home, monkeypatch)
     assert Path(ex["mp3"]).exists()
 
 
-def test_generate_requires_verified_profile(client, tmp_path):
+def test_generate_works_with_fresh_profile(client, tmp_path):
+    # speaker verification is optional in this build; a freshly captured
+    # profile must generate without any verification step
     data = _wav_bytes(tmp_path)
     r = client.post("/api/v1/profiles", headers=_auth(client),
                     data={"name": "Me"},
@@ -181,8 +176,8 @@ def test_generate_requires_verified_profile(client, tmp_path):
         if snap["status"] in ("done", "failed"):
             break
         time.sleep(0.25)
-    assert snap["status"] == "failed"
-    assert "not verified" in snap["error"]
+    assert snap["status"] == "done", snap.get("error")
+    assert snap["segments"][0]["status"] == "done"
 
 
 def test_audit_and_diagnostics(client):
